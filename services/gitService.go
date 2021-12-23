@@ -30,6 +30,6 @@ func (g *gitService) SetPreCommitHook() {
 	}
 	//go:embed "commit-msg.gotmpl"
 	var validatorTemplate string
-	validatorTemplate, err = template.New("Commit Message J")
+	validatorTemplate, err = template.New("Commit Message Js")
 	fmt.Println(string(output))
 }
