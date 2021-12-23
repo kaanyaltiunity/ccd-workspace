@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	commitRegex = `(docs|feature|chore)\((CCD)\-([0-9]*)\)\: ([a-zA-Z0-9_,. ]+$)|Merge branch`
+	commitRegex = `(docs|feature|chore)\((CCS)\-([0-9]*)\)\: ([a-zA-Z0-9_,. ]+$)|Merge branch`
 )
 
 type GitService interface {
