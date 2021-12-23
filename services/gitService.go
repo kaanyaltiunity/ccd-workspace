@@ -1,6 +1,10 @@
 package services
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+	"os/exec"
+)
 
 type GitService interface {
 	SetPreCommitHook()
@@ -14,5 +18,10 @@ func NewGitService() GitService {
 }
 
 func (g *gitService) SetPreCommitHook() {
-	fmt.Println("D")
+	cmd := exec.Command("which", "node")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatalln(fmt.Sprintf("could not find \"node\", please install \"node\": %s", err))
+	}
+	fmt.Println(string(output))
 }
