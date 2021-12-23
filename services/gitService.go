@@ -14,5 +14,5 @@ func NewGitService() GitService {
 }
 
 func (g *gitService) SetPreCommitHook() {
-	fmt.Println("H")
+	fmt.Println("J")
 }
