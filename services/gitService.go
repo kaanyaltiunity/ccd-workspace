@@ -4,6 +4,7 @@ import (
 	"ccdWorkspace/utils"
 	_ "embed"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -43,12 +44,12 @@ func (g *gitService) SetCommitMessageHook() {
 	cmd := exec.Command("which", "node")
 	nodePath, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Fatalln(fmt.Sprintf("could not find \"node\", please install \"node\": %s", err))
+		log.Fatalln(fmt.Sprintf("%scould not find \"node\", please install \"node\": %s%s", utils.ColorTags.Foreground.Red, err, utils.ColorTags.Modifiers.Reset))
 	}
 
 	commitMessageTemplate, err := template.New("Commit Message Js").Parse(g.hookTemplates.CommitMessageTemplate)
 	if err != nil {
-		log.Fatalln(fmt.Sprintf("ran into an error while parsing the commit message template: %s", err))
+		log.Fatalln(fmt.Sprintf("%sran into an error while parsing the commit message template: %s%s", utils.ColorTags.Foreground.Red, err, utils.ColorTags.Modifiers.Reset))
 	}
 
 	templateVars := CommitMessageTemplateVars{
@@ -56,7 +57,11 @@ func (g *gitService) SetCommitMessageHook() {
 		CommitRegex:    commitRegex,
 		ColorModifiers: utils.ColorTags,
 	}
-
+	childDirs, err := g.getChildDirs()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(childDirs)
 	err = g.writeToFile(commitMessageTemplate, templateVars, commitMessageHookFileName)
 	if err != nil {
 		log.Fatalln(err)
@@ -66,19 +71,33 @@ func (g *gitService) SetCommitMessageHook() {
 func (g *gitService) writeToFile(template *template.Template, templateVars interface{}, fileName string) error {
 	currentDir, _ := exec.Command("pwd").CombinedOutput()
 
-	log.Printf("%screating %s in %s%s\n", utils.ColorTags.Foreground.Cyan, fileName, currentDir, utils.ColorTags.Modifiers.Reset)
+	log.Printf("%screating %s in %s%s", utils.ColorTags.Foreground.Cyan, fileName, currentDir, utils.ColorTags.Modifiers.Reset)
 	file, err := os.Create(fileName)
 	if err != nil {
 		return fmt.Errorf("%serror while creating file\nFile Name: %s\nError: %s%s", utils.ColorTags.Foreground.Red, fileName, err, utils.ColorTags.Modifiers.Reset)
 	}
 	defer file.Close()
 
+	log.Printf("%sexecuting template in %s%s", utils.ColorTags.Foreground.Cyan, fileName, utils.ColorTags.Modifiers.Reset)
 	err = template.Execute(file, templateVars)
 	if err != nil {
-		return fmt.Errorf("error while executing template for %s\nError: %s", fileName, err)
+		return fmt.Errorf("%sran into an error while executing template for %s\nError: %s%s", utils.ColorTags.Foreground.Red, fileName, err, utils.ColorTags.Modifiers.Reset)
 	}
 
 	return nil
 }
 
-// func (g *gitService) getChildDirs()
+func (g *gitService) getChildDirs() ([]string, error) {
+	var childDirs []string
+	files, err := ioutil.ReadDir(".")
+	if err != nil {
+		return nil, fmt.Errorf("%sran into an error while fetching contents of the current directory\nError: %s%s", utils.ColorTags.Foreground.Red, err, utils.ColorTags.Modifiers.Reset)
+	}
+
+	for _, info := range files {
+		if info.IsDir() {
+			childDirs = append(childDirs, info.Name())
+		}
+	}
+	return childDirs, nil
+}
