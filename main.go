@@ -1,8 +1,17 @@
 package main
 
-import "ccdWorkspace/services"
+import (
+	"ccdWorkspace/services"
+	_ "embed"
+)
+
+//go:embed templates/commit-msg.gotmpl
+var commitMessageTemplate string
 
 func main() {
-	gitService := services.NewGitService()
-	gitService.SetPreCommitHook()
+	hookTemplates := services.HookTempaltes{
+		CommitMessageTemplate: commitMessageTemplate,
+	}
+	gitService := services.NewGitService(hookTemplates)
+	gitService.SetCommitMessageHook()
 }

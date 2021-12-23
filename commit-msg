@@ -1,8 +1,9 @@
-#!{{ .NodePath }}
+#!/usr/local/bin/node
+
 const fs = require("fs")
 const readline = require('readline');
 
-const reg = /{{ .CommitRegex }}/
+const reg = /(docs|feature|chore|fix)\((CCS)\-([0-9]*)\)\: ([a-zA-Z0-9_,. ]+$)|Merge branch/
 const fileStream = fs.createReadStream(process.argv[2])
 const reader = readline.createInterface({
     input: fileStream,
@@ -24,7 +25,7 @@ reader.on("close", function(){
         console.log(`\x1b[36mCommit message is valid\x1b[0m`)
         process.exit(0)
     } else {
-        const invalidCommitWarning = `{{ .ColorModifiers.Foreground.Red }}Provided commit message is not valid!\n{{ .ColorModifiers.Modifiers.Reset }}>>>>>>    ${commitFirstLine}    <<<<<<\n{{ .ColorModifiers.Foreground.Red }}Please provide a valid commit message{{ .ColorModifiers.Modifiers.Reset }}\n{{ .ColorModifiers.Foreground.Cyan }}Examples:{{ .ColorModifiers.Modifiers.Reset }}\n\tfeature(CCS-123): mock message\n\tdocs(CCS-123): mock message\n\tchore(CCS-123): mock message\n\tfix(CCS-123): mock message`
+        const invalidCommitWarning = `[31mProvided commit message is not valid!\n[0m>>>>>>    ${commitFirstLine}    <<<<<<\n[31mPlease provide a valid commit message[0m\n[36mExamples:[0m\n\tfeature(CCS-123): mock message\n\tdocs(CCS-123): mock message\n\tchore(CCS-123): mock message\n\tfix(CCS-123): mock message`
         console.log(invalidCommitWarning)
         process.exit(1)
     }
