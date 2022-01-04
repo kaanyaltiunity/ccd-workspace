@@ -62,7 +62,33 @@ func (g *gitService) SetCommitMessageHook() {
 		log.Fatalln(err)
 	}
 	fmt.Println(childDirs)
-	err = g.writeToFile(commitMessageTemplate, templateVars, commitMessageHookFileName)
+
+	for _, childDir := range childDirs {
+		os.Chdir(fmt.Sprintf("./%s", childDir))
+		currentWorkingDir, err := os.Getwd()
+		if err != nil {
+			log.Fatalln("err")
+		}
+		log.Printf("%scurrent working dir%s %s", utils.ColorTags.Foreground.Cyan, utils.ColorTags.Modifiers.Reset, currentWorkingDir)
+		subDirs, err := g.getChildDirs()
+		if err != nil {
+			log.Fatalln(err)
+		}
+		for _, subDir := range subDirs {
+			if subDir == ".git" {
+				os.Chdir(".git/hooks")
+				currentWorkingDir, err = os.Getwd()
+				if err != nil {
+					log.Fatalln(err)
+				}
+				log.Printf("%scurrent working dir%s %s", utils.ColorTags.Foreground.Cyan, utils.ColorTags.Modifiers.Reset, currentWorkingDir)
+				g.writeToFile(commitMessageTemplate, templateVars, commitMessageHookFileName)
+				os.Chdir("../../")
+			}
+		}
+		os.Chdir("../")
+	}
+
 	if err != nil {
 		log.Fatalln(err)
 	}
