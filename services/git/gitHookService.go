@@ -12,15 +12,18 @@ import (
 )
 
 const (
-	commitRegex               = `(docs|feature|chore|fix)\((CCS)\-([0-9]*)\)\: ([a-zA-Z0-9_,. ]+$)|Merge branch`
-	commitMessageHookFileName = "commit-msg"
+	commitRegex           = `(docs|feature|chore|fix)\((CCS)\-([0-9]*)\)\: ([a-zA-Z0-9_,. ]+$)|Merge branch`
+	commitMessageHookName = "commit-msg"
 )
 
-type GitService interface {
-	SetCommitMessageHook()
+type SetHookFunc func() error
+
+type GitHookService interface {
+	GetHookFunc(string) (SetHookFunc, error)
 }
 
-type gitService struct {
+type gitHookService struct {
+	hooksMap      map[string]SetHookFunc
 	hookTemplates HookTempaltes
 }
 
@@ -34,22 +37,35 @@ type CommitMessageTemplateVars struct {
 	ColorModifiers utils.TextColorTags
 }
 
-func NewGitService(hookTemplates HookTempaltes) GitService {
-	return &gitService{
+func NewGitHookService(hookTemplates HookTempaltes) GitHookService {
+	service := &gitHookService{
 		hookTemplates: hookTemplates,
 	}
+	hooksMap := make(map[string]SetHookFunc)
+	hooksMap[commitMessageHookName] = service.SetCommitMessageHook
+
+	service.hooksMap = hooksMap
+
+	return service
 }
 
-func (g *gitService) SetCommitMessageHook() {
+func (g *gitHookService) GetHookFunc(hookName string) (SetHookFunc, error) {
+	if hookFunc, ok := g.hooksMap[hookName]; ok {
+		return hookFunc, nil
+	}
+	return nil, fmt.Errorf("%scould not find any git hook with name%s \"%s\"", utils.ColorTags.Foreground.Red, utils.ColorTags.Modifiers.Reset, hookName)
+}
+
+func (g *gitHookService) SetCommitMessageHook() error {
 	cmd := exec.Command("which", "node")
 	nodePath, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Fatalln(fmt.Sprintf("%scould not find \"node\", please install \"node\": %s%s", utils.ColorTags.Foreground.Red, err, utils.ColorTags.Modifiers.Reset))
+		fmt.Errorf("%scould not find \"node\", please install \"node\": %s%s", utils.ColorTags.Foreground.Red, err, utils.ColorTags.Modifiers.Reset)
 	}
 
 	commitMessageTemplate, err := template.New("Commit Message Js").Parse(g.hookTemplates.CommitMessageTemplate)
 	if err != nil {
-		log.Fatalln(fmt.Sprintf("%sran into an error while parsing the commit message template: %s%s", utils.ColorTags.Foreground.Red, err, utils.ColorTags.Modifiers.Reset))
+		fmt.Errorf("%sran into an error while parsing the commit message template: %s%s", utils.ColorTags.Foreground.Red, err, utils.ColorTags.Modifiers.Reset)
 	}
 
 	templateVars := CommitMessageTemplateVars{
@@ -59,7 +75,7 @@ func (g *gitService) SetCommitMessageHook() {
 	}
 	childDirs, err := g.getChildDirs()
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 	fmt.Println(childDirs)
 
@@ -67,34 +83,31 @@ func (g *gitService) SetCommitMessageHook() {
 		os.Chdir(fmt.Sprintf("./%s", childDir))
 		currentWorkingDir, err := os.Getwd()
 		if err != nil {
-			log.Fatalln("err")
+			return err
 		}
 		log.Printf("%scurrent working dir%s %s", utils.ColorTags.Foreground.Cyan, utils.ColorTags.Modifiers.Reset, currentWorkingDir)
 		subDirs, err := g.getChildDirs()
 		if err != nil {
-			log.Fatalln(err)
+			return err
 		}
 		for _, subDir := range subDirs {
 			if subDir == ".git" {
 				os.Chdir(".git/hooks")
 				currentWorkingDir, err = os.Getwd()
 				if err != nil {
-					log.Fatalln(err)
+					return err
 				}
 				log.Printf("%scurrent working dir%s %s", utils.ColorTags.Foreground.Cyan, utils.ColorTags.Modifiers.Reset, currentWorkingDir)
-				g.writeToFile(commitMessageTemplate, templateVars, commitMessageHookFileName)
+				g.writeToFile(commitMessageTemplate, templateVars, commitMessageHookName)
 				os.Chdir("../../")
 			}
 		}
 		os.Chdir("../")
 	}
-
-	if err != nil {
-		log.Fatalln(err)
-	}
+	return nil
 }
 
-func (g *gitService) writeToFile(template *template.Template, templateVars interface{}, fileName string) error {
+func (g *gitHookService) writeToFile(template *template.Template, templateVars interface{}, fileName string) error {
 	currentDir, _ := exec.Command("pwd").CombinedOutput()
 
 	log.Printf("%screating %s in %s%s", utils.ColorTags.Foreground.Cyan, fileName, currentDir, utils.ColorTags.Modifiers.Reset)
@@ -113,7 +126,7 @@ func (g *gitService) writeToFile(template *template.Template, templateVars inter
 	return nil
 }
 
-func (g *gitService) getChildDirs() ([]string, error) {
+func (g *gitHookService) getChildDirs() ([]string, error) {
 	var childDirs []string
 	files, err := ioutil.ReadDir(".")
 	if err != nil {
