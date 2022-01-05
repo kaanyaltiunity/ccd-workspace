@@ -2,7 +2,7 @@ package main
 
 import (
 	"ccdWorkspace/cmd"
-	services "ccdWorkspace/services/git"
+	"ccdWorkspace/services"
 	_ "embed"
 )
 
@@ -14,8 +14,12 @@ func main() {
 		CommitMessageTemplate: commitMessageTemplate,
 	}
 	gitHookService := services.NewGitHookService(hookTemplates)
-	gitHooksCmd := cmd.NewSetGitHooks(gitHookService)
-	cmd.RootCmd.AddCommand(gitHooksCmd)
+	setGitHooksCmd := cmd.NewSetGitHooks(gitHookService)
+	cmd.RootCmd.AddCommand(setGitHooksCmd)
+
+	commitService := services.NewCommitValidatorService()
+	validateCommitCmd := cmd.NewCommitValidator(commitService)
+	cmd.RootCmd.AddCommand(validateCommitCmd)
 
 	cmd.Execute()
 }

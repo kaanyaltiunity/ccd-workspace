@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	services "ccdWorkspace/services/git"
+	"ccdWorkspace/services"
 
 	"github.com/spf13/cobra"
 )
@@ -15,10 +15,6 @@ var (
 	setCommitMessageFlag string
 	setHookForAll        bool
 )
-
-type SetGitHooks interface {
-	SetGitHooksCmd(*cobra.Command, []string) error
-}
 
 type setGitHooks struct {
 	gitHookService services.GitHookService

@@ -12,7 +12,6 @@ import (
 )
 
 const (
-	commitRegex           = `(docs|feature|chore|fix)\((CCS)\-([0-9]*)\)\: ([a-zA-Z0-9_,. ]+$)|Merge branch`
 	commitMessageHookName = "commit-msg"
 )
 
@@ -76,7 +75,7 @@ func (g *gitHookService) setCommitMessageHook() error {
 
 	templateVars := CommitMessageTemplateVars{
 		NodePath:       string(nodePath),
-		CommitRegex:    commitRegex,
+		CommitRegex:    utils.CommitMessageReg,
 		ColorModifiers: utils.ColorTags,
 	}
 	childDirs, err := g.getChildDirs()
