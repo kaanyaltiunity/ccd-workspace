@@ -20,11 +20,13 @@ type SetHookFunc func() error
 
 type GitHookService interface {
 	GetHookFunc(string) (SetHookFunc, error)
+	SetApplyToSubDir(bool)
 }
 
 type gitHookService struct {
 	hooksMap      map[string]SetHookFunc
 	hookTemplates HookTempaltes
+	applyToSubDir bool
 }
 
 type HookTempaltes struct {
@@ -42,7 +44,7 @@ func NewGitHookService(hookTemplates HookTempaltes) GitHookService {
 		hookTemplates: hookTemplates,
 	}
 	hooksMap := make(map[string]SetHookFunc)
-	hooksMap[commitMessageHookName] = service.SetCommitMessageHook
+	hooksMap[commitMessageHookName] = service.setCommitMessageHook
 
 	service.hooksMap = hooksMap
 
@@ -56,7 +58,11 @@ func (g *gitHookService) GetHookFunc(hookName string) (SetHookFunc, error) {
 	return nil, fmt.Errorf("%scould not find any git hook with name%s \"%s\"", utils.ColorTags.Foreground.Red, utils.ColorTags.Modifiers.Reset, hookName)
 }
 
-func (g *gitHookService) SetCommitMessageHook() error {
+func (g *gitHookService) SetApplyToSubDir(applyToSubDir bool) {
+	g.applyToSubDir = applyToSubDir
+}
+
+func (g *gitHookService) setCommitMessageHook() error {
 	cmd := exec.Command("which", "node")
 	nodePath, err := cmd.CombinedOutput()
 	if err != nil {
@@ -77,40 +83,64 @@ func (g *gitHookService) SetCommitMessageHook() error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(childDirs)
 
-	for _, childDir := range childDirs {
-		os.Chdir(fmt.Sprintf("./%s", childDir))
-		currentWorkingDir, err := os.Getwd()
-		if err != nil {
-			return err
-		}
-		log.Printf("%scurrent working dir%s %s", utils.ColorTags.Foreground.Cyan, utils.ColorTags.Modifiers.Reset, currentWorkingDir)
-		subDirs, err := g.getChildDirs()
-		if err != nil {
-			return err
-		}
-		for _, subDir := range subDirs {
-			if subDir == ".git" {
-				os.Chdir(".git/hooks")
-				currentWorkingDir, err = os.Getwd()
-				if err != nil {
-					return err
-				}
-				log.Printf("%scurrent working dir%s %s", utils.ColorTags.Foreground.Cyan, utils.ColorTags.Modifiers.Reset, currentWorkingDir)
-				g.writeToFile(commitMessageTemplate, templateVars, commitMessageHookName)
-				os.Chdir("../../")
+	if g.applyToSubDir {
+		for _, childDir := range childDirs {
+			os.Chdir(fmt.Sprintf("./%s", childDir))
+			currentWorkingDir, err := os.Getwd()
+			if err != nil {
+				return err
 			}
+			log.Printf("%scurrent working dir%s %s", utils.ColorTags.Foreground.Cyan, utils.ColorTags.Modifiers.Reset, currentWorkingDir)
+			subDirs, err := g.getChildDirs()
+			if err != nil {
+				return err
+			}
+			for _, subDir := range subDirs {
+				if subDir == ".git" {
+					os.Chdir(".git/hooks")
+					currentWorkingDir, err = os.Getwd()
+					if err != nil {
+						return err
+					}
+					log.Printf("%scurrent working dir%s %s", utils.ColorTags.Foreground.Cyan, utils.ColorTags.Modifiers.Reset, currentWorkingDir)
+					g.writeToFile(commitMessageTemplate, templateVars, commitMessageHookName)
+					os.Chdir("../../")
+				}
+			}
+			os.Chdir("../")
 		}
-		os.Chdir("../")
+		return nil
 	}
+	isGit := false
+	for _, childDir := range childDirs {
+		if childDir == ".git" {
+			isGit = true
+		}
+	}
+	if !isGit {
+		log.Printf("%scurrent directory is not a git repo%s", utils.ColorTags.Foreground.Cyan, utils.ColorTags.Modifiers.Reset)
+		return nil
+	}
+	os.Chdir("./git/hooks")
+	currentWorkingDir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	log.Printf("%scurrent working dir%s %s", utils.ColorTags.Foreground.Cyan, utils.ColorTags.Modifiers.Reset, currentWorkingDir)
+
+	err = g.writeToFile(commitMessageTemplate, templateVars, commitMessageHookName)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (g *gitHookService) writeToFile(template *template.Template, templateVars interface{}, fileName string) error {
 	currentDir, _ := exec.Command("pwd").CombinedOutput()
 
-	log.Printf("%screating %s in %s%s", utils.ColorTags.Foreground.Cyan, fileName, currentDir, utils.ColorTags.Modifiers.Reset)
+	log.Printf("%screating %s in%s %s", utils.ColorTags.Foreground.Cyan, fileName, utils.ColorTags.Modifiers.Reset, currentDir)
 	file, err := os.Create(fileName)
 	if err != nil {
 		return fmt.Errorf("%serror while creating file\nFile Name: %s\nError: %s%s", utils.ColorTags.Foreground.Red, fileName, err, utils.ColorTags.Modifiers.Reset)

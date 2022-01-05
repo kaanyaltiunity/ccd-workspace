@@ -7,11 +7,13 @@ import (
 )
 
 const (
-	flagName = "hook"
+	hookFlagName = "hook"
+	allFlagName  = "all"
 )
 
 var (
 	setCommitMessageFlag string
+	setHookForAll        bool
 )
 
 type SetGitHooks interface {
@@ -34,12 +36,15 @@ func NewSetGitHooks(gitHookService services.GitHookService) *cobra.Command {
 		RunE:  sgh.SetGitHooksCmd,
 	}
 
-	cmd.Flags().StringVarP(&setCommitMessageFlag, flagName, "", "", "Git hook to set")
-	cmd.MarkFlagRequired(flagName)
+	cmd.Flags().StringVarP(&setCommitMessageFlag, hookFlagName, "", "", "Git hook to set")
+	cmd.MarkFlagRequired(hookFlagName)
+
+	cmd.Flags().BoolVarP(&setHookForAll, allFlagName, "", false, "Determines whether to apply the commit hook to all sub directories or only in the current working directory")
 	return cmd
 }
 
 func (s *setGitHooks) SetGitHooksCmd(cmd *cobra.Command, args []string) error {
+	s.gitHookService.SetApplyToSubDir(setHookForAll)
 	hookFunc, err := s.gitHookService.GetHookFunc(setCommitMessageFlag)
 	if err != nil {
 		return err
